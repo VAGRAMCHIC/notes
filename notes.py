@@ -2,10 +2,16 @@ from __future__ import division
 import math
 import time
 import cairo
-import gi; gi.require_version('Gtk', '4.0')
-from gi.repository import Gtk, Gdk, Adw
+import gi
 import random
 import sys
+
+from gi.repository import Gtk, Gdk, Adw
+
+
+gi.require_version('Gtk', '4.0')
+gi.require_version('Adw', '1')
+
 
 class Brush(object):
     def __init__(self, width, rgba_color):
@@ -20,20 +26,28 @@ class Canvas(Gtk.DrawingArea):
     def __init__(self, height, **kwargs):
         super().__init__(**kwargs)
         self.set_draw_func(self.draw, None)
-        self.height = height
-        
+        self.set_size_request(200, 200)
+
         mouse_event_controller = Gtk.GestureClick.new()
         mouse_event_controller.connect('pressed', self.mouse_press)
+        mouse_event_controller.connect('released', self.mouse_release)
+
         self.add_controller(mouse_event_controller)
 
         mouse_move_controller = Gtk.EventControllerMotion.new()
         mouse_move_controller.connect("motion", self.mouse_move)
         self.add_controller(mouse_move_controller)
+
+        print(dir(Gtk))
+        #mouse_release_controller = Gdk.GestureClick.new()
+        #mouse_release_controller.connect('release', self.mouse_release)
+        #self.add_controller(mouse_release_controller)
         
         self.brushes = []
 
-    def draw(self, widget, cr):
+    def draw(self, widget, cr, *args):
         da = widget
+        print(args)
         cr.set_source_rgba(0, 0, 0, 1)
         cr.paint()
         #cr.set_operator(cairo.OPERATOR_SOURCE)#gets rid over overlap, but problematic with multiple colors
@@ -67,18 +81,19 @@ class Canvas(Gtk.DrawingArea):
             self.queue_draw()
             
 
-    def mouse_press(self, gesture, data, x, y):
-        if data.button == Gdk.BUTTON_PRIMARY:
+    def mouse_press(self, gesture,data, x, y):
+        print(gesture.get_button())
+        if gesture.get_button() == 1:
             rgba_color = (random.random(), random.random(), random.random(), 0.5)
             brush = Brush(12, rgba_color)
-            brush.add_point((data.x, data.y))
+            brush.add_point((x, y))
             self.brushes.append(brush)
             self.queue_draw()
-        elif self.button == Gdk.BUTTON_SECONDARY:
+        elif gesture == Gdk.BUTTON_SECONDARY:
             self.brushes = []
 
-    def mouse_release(self, widget, event):
-        widget.queue_draw()
+    def mouse_release(self, gesture,data, x, y):
+        self.queue_draw()
 
 
 class MainWindow(Gtk.ApplicationWindow):
@@ -87,7 +102,10 @@ class MainWindow(Gtk.ApplicationWindow):
         self.width = 400
         self.height = 400
         self.canvas = Canvas(self.height)
+
         self.canvas_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.canvas_box.set_halign(Gtk.Align.FILL)
+        self.canvas_box.set_valign(Gtk.Align.FILL)
         self.set_child(self.canvas_box)
         self.canvas_box.append(self.canvas)
 
