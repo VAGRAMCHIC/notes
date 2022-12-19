@@ -1,2 +1,2 @@
 # notes
-simple notepad
+simple paint keeps app on python/gtk4
