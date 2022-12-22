@@ -6,11 +6,12 @@ import gi
 import random
 import sys
 
+gi.require_version('Gtk', '4.0')
+gi.require_version('Adw', '1')
+
 from gi.repository import Gtk, Gdk, Adw
 
 
-gi.require_version('Gtk', '4.0')
-gi.require_version('Adw', '1')
 
 
 class Brush(object):
@@ -26,31 +27,24 @@ class Canvas(Gtk.DrawingArea):
     def __init__(self, height, **kwargs):
         super().__init__(**kwargs)
         self.set_draw_func(self.draw, None)
-        self.set_size_request(200, 200)
+        self.set_size_request(400, 400)
 
-        mouse_event_controller = Gtk.GestureClick.new()
-        mouse_event_controller.connect('pressed', self.mouse_press)
-        mouse_event_controller.connect('released', self.mouse_release)
+        self.mouse_event_controller = Gtk.GestureClick.new()
+        self.mouse_event_controller.connect('pressed', self.mouse_press)
+        self.mouse_event_controller.connect('released', self.mouse_release)
+        self.add_controller(self.mouse_event_controller)
 
-        self.add_controller(mouse_event_controller)
-
-        mouse_move_controller = Gtk.EventControllerMotion.new()
-        mouse_move_controller.connect("motion", self.mouse_move)
-        self.add_controller(mouse_move_controller)
-
-        print(dir(Gtk))
-        #mouse_release_controller = Gdk.GestureClick.new()
-        #mouse_release_controller.connect('release', self.mouse_release)
-        #self.add_controller(mouse_release_controller)
+        self.mouse_move_controller = Gtk.EventControllerMotion.new()
+        self.mouse_move_controller.connect("motion", self.mouse_move)
+        self.add_controller(self.mouse_move_controller)
+      
         
         self.brushes = []
 
+
     def draw(self, widget, cr, *args):
-        da = widget
-        print(args)
-        cr.set_source_rgba(0, 0, 0, 1)
+        cr.set_source_rgba(255, 255, 255, 1)
         cr.paint()
-        #cr.set_operator(cairo.OPERATOR_SOURCE)#gets rid over overlap, but problematic with multiple colors
         for brush in self.brushes:
             cr.set_source_rgba(*brush.rgba_color)
             cr.set_line_width(brush.width)
@@ -61,39 +55,29 @@ class Canvas(Gtk.DrawingArea):
                 cr.line_to(x, y)
             cr.stroke()
 
-    def init_draw_area(self):
-        draw_area = Gtk.DrawingArea()
-        draw_area.set_draw_func(self.draw, None)
-        #draw_area.set_motion_notify_event_func(self.mouse_move, None)
-        #draw_area.connect('button-press-event', self.mouse_press)
-        #draw_area.connect('button-release-event', self.mouse_release)
-        #draw_area.set_events(draw_area.get_events() |
-        #    Gdk.EventMask.BUTTON_PRESS_MASK |
-        #    Gdk.EventMask.POINTER_MOTION_MASK |
-        #    Gdk.EventMask.BUTTON_RELEASE_MASK)
-        return draw_area
 
     def mouse_move(self, motion, x, y):
-        print([x,y])
-        if motion :
-            curr_brush = self.brushes[-1]
-            curr_brush.add_point((x, y))
-            self.queue_draw()
+        if str(motion.get_current_event_state()) == str(Gdk.ModifierType.BUTTON1_MASK):
+            try:
+                curr_brush = self.brushes[-1]
+                curr_brush.add_point((x, y))
+            except:
+                pass
+        self.queue_draw()
             
 
-    def mouse_press(self, gesture,data, x, y):
-        print(gesture.get_button())
-        if gesture.get_button() == 1:
+    def mouse_press(self, gesture, data, x, y):
+        if data == Gdk.BUTTON_PRIMARY:
             rgba_color = (random.random(), random.random(), random.random(), 0.5)
             brush = Brush(12, rgba_color)
             brush.add_point((x, y))
             self.brushes.append(brush)
             self.queue_draw()
-        elif gesture == Gdk.BUTTON_SECONDARY:
-            self.brushes = []
 
-    def mouse_release(self, gesture,data, x, y):
-        self.queue_draw()
+
+    def mouse_release(self, gesture, data, x, y):
+        if gesture.get_button() == Gdk.BUTTON_PRIMARY:
+            self.queue_draw()
 
 
 class MainWindow(Gtk.ApplicationWindow):
@@ -102,7 +86,8 @@ class MainWindow(Gtk.ApplicationWindow):
         self.width = 400
         self.height = 400
         self.canvas = Canvas(self.height)
-
+        self.canvas.set_halign(Gtk.Align.FILL)
+        self.canvas.set_valign(Gtk.Align.FILL)
         self.canvas_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.canvas_box.set_halign(Gtk.Align.FILL)
         self.canvas_box.set_valign(Gtk.Align.FILL)
